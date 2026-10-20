@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nudge Lab</title>
+<meta name="description" content="A classroom game: choose choice-architecture interventions and simulate their effects. Simulated effects are calibrated to Mertens et al. (2022, PNAS).">
+<style>
+  :root{
+    --bg:#f5f3ee; --card:#ffffff; --ink:#1d1d1f; --muted:#66645f; --line:#dcd8cf;
+    --accent:#2f5d8a; --accent-ink:#fff; --soft:#eef3f8;
+    --info:#3d7bb6; --struct:#b5582e; --assist:#5b8a3a;
+    --good:#2e7d4f; --bad:#b33a3a; --warn:#a36a00;
+    --control:#8a8780; --treat:#2f5d8a; --shadow:0 10px 30px rgba(0,0,0,.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141517; --card:#1e2023; --ink:#ececec; --muted:#a3a19c; --line:#393c41;
+      --accent:#79a9d8; --accent-ink:#0d1116; --soft:#1f2a35;
+      --info:#7fb0e0; --struct:#e08a62; --assist:#94c472;
+      --good:#6cc690; --bad:#ef7f7f; --warn:#e3b25a;
+      --control:#9b9892; --treat:#79a9d8; --shadow:0 10px 30px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141517; --card:#1e2023; --ink:#ececec; --muted:#a3a19c; --line:#393c41;
+    --accent:#79a9d8; --accent-ink:#0d1116; --soft:#1f2a35;
+    --info:#7fb0e0; --struct:#e08a62; --assist:#94c472;
+    --good:#6cc690; --bad:#ef7f7f; --warn:#e3b25a;
+    --control:#9b9892; --treat:#79a9d8; --shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-text-size-adjust:100%;line-height:1.45}
+  main{max-width:1080px;margin:0 auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom))}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 16px;flex-wrap:wrap}
+  header.top h1{font-size:1.35rem;margin:0;letter-spacing:-.01em}
+  header.top h1 span{color:var(--muted);font-weight:500;font-size:.95rem;margin-left:6px}
+  h2{font-size:1.15rem;margin:0 0 8px}
+  h3{font-size:1rem;margin:0 0 6px}
+  p{margin:.4em 0 .8em}
+  .muted{color:var(--muted)}
+  .small{font-size:.86rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .stack>*+*{margin-top:14px}
+  .grid{display:grid;gap:14px}
+  .missions{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  .mission{cursor:pointer;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px;transition:transform .08s,border-color .15s}
+  .mission:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .mission .emoji{font-size:1.6rem}
+  .tag{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .tag.info{color:var(--info);border-color:var(--info)}
+  .tag.struct{color:var(--struct);border-color:var(--struct)}
+  .tag.assist{color:var(--assist);border-color:var(--assist)}
+  button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 14px;cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.link{border:none;background:none;color:var(--accent);padding:4px 6px;text-decoration:underline}
+  select{font:inherit;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:16px;align-items:start}
+  .layout>*{min-width:0}
+  .side{position:sticky;top:12px}
+  .tools{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+  .tool{text-align:left;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+  .tool:hover:not(:disabled){border-color:var(--muted)}
+  .tool.sel{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+  .tool .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .tool .name{font-weight:600}
+  .tool .desc{font-size:.88rem;color:var(--muted)}
+  .tool .tech{font-size:.78rem;color:var(--muted)}
+  .tick{font-weight:700;color:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:.82rem;border-radius:99px;padding:3px 10px;background:var(--soft);border:1px solid var(--line)}
+  svg text{fill:var(--ink);font-family:inherit}
+  .pill{display:inline-block;font-weight:600;font-size:.82rem;padding:3px 9px;border-radius:6px}
+  .pill.good{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+  .pill.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+  table{border-collapse:collapse;width:100%;font-size:.88rem}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tablewrap{overflow-x:auto}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:10px 0}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat .lbl{font-size:.78rem;color:var(--muted)}
+  .stat .val{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+  .stat .sub{font-size:.78rem;color:var(--muted)}
+  .callout{border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:0 10px 10px 0}
+  .callout.good{border-left-color:var(--good)} .callout.good b{color:var(--good)}
+  .callout.warn{border-left-color:var(--warn)}
+  .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .settings label{display:flex;flex-direction:column;gap:4px;font-size:.9rem}
+  .hidden{display:none !important}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .legend i.dot{border-radius:50%}
+  a{color:var(--accent)}
+  .refs li{margin-bottom:6px}
+  .banner{font-size:.85rem;padding:8px 12px;border-radius:10px;background:var(--soft);border:1px dashed var(--line);margin-bottom:14px}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .fb-enter{animation:fb .35s ease-out}
+  @keyframes fb{from{opacity:.2;transform:translateY(6px)}to{opacity:1;transform:none}}
+  #tip{position:fixed;z-index:50;max-width:260px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:.84rem;box-shadow:var(--shadow);pointer-events:none}
+  #tip b{display:block;margin-bottom:2px}
+  .pt{cursor:pointer;outline:none}
+  .pt:focus-visible circle.ring{stroke:var(--accent);stroke-width:2.5}
+  /* tutorial */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+  .modal{background:var(--card);border-radius:16px;max-width:460px;width:100%;padding:24px;box-shadow:var(--shadow);border:1px solid var(--line)}
+  .modal .art{font-size:2.4rem;line-height:1;margin-bottom:10px}
+  .modal .dots{display:flex;gap:6px;justify-content:center;margin:16px 0 4px}
+  .modal .dots span{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .modal .dots span.on{background:var(--accent)}
+  .modal .nav{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+  /* mobile */
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr}
+    .side{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:20;border-radius:14px 14px 0 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));box-shadow:var(--shadow)}
+    .side .wide{display:none}
+    .side .bar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    main.has-bar{padding-bottom:110px}
+  }
+  @media (min-width:861px){ .side .bar .count{display:none} }
+</style>
+</head>
+<body>
+<main id="main">
+  <header class="top">
+    <h1>Nudge Lab <span>a choice architecture simulator</span></h1>
+    <nav>
+      <button class="link" data-go="home">Missions</button>
+      <button class="link" id="openTutorial">Tutorial</button>
+      <button class="link" data-go="about">How it works</button>
+    </nav>
+  </header>
+  <div id="modeBanner" class="banner hidden"></div>
+  <section id="view"></section>
+</main>
+<div id="tip" class="hidden" role="tooltip"></div>
+<div id="tutorial" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutTitle"></div>
+
+<script>
+/* =====================================================================
+   CALIBRATION: transcribed from Mertens, Herberz, Hahnel & Brosch (2022),
+   PNAS 119(1) e2107346118, corrected version (k = 447 effect sizes).
+   Technique estimates: Table 2 / Fig. 4. Category x domain estimates: Fig. 5.
+   ===================================================================== */
+const CATEGORY = {
+  info:   {label:"Decision information", short:"Information", d:0.34},
+  struct: {label:"Decision structure",   short:"Structure",   d:0.54},
+  assist: {label:"Decision assistance",  short:"Assistance",  d:0.28}
+};
+const TECHNIQUE = {
+  translation: {cat:"info",   d:0.28, label:"Translation",      def:"Reframe or translate information that is already available"},
+  visibility:  {cat:"info",   d:0.32, label:"Visibility",       def:"Make relevant information visible"},
+  social:      {cat:"info",   d:0.36, label:"Social reference", def:"Provide a social norm or reference point"},
+  default:     {cat:"struct", d:0.62, label:"Default",          def:"Change the choice default (or prompt active choice)"},
+  effort:      {cat:"struct", d:0.48, label:"Effort",           def:"Reduce physical or financial effort for the desired option"},
+  composition: {cat:"struct", d:0.44, label:"Composition",      def:"Change the range or grouping of options"},
+  consequence: {cat:"struct", d:0.38, label:"Consequence",      def:"Change option consequences (micro-incentives, social consequences)"},
+  reminder:    {cat:"assist", d:0.29, label:"Reminder",         def:"Increase the salience of the desired behavior"},
+  commitment:  {cat:"assist", d:0.23, label:"Commitment",       def:"Facilitate self- or public commitment"}
+};
+const DOMAIN = { // Fig. 5: category effect within each domain; avg = Table 2 domain estimate
+  health:      {label:"Health",      info:0.26, struct:0.44, assist:0.20, avg:0.34},
+  food:        {label:"Food",        info:0.44, struct:0.78, assist:0.43, avg:0.65},
+  environment: {label:"Environment", info:0.40, struct:0.52, assist:0.25, avg:0.43},
+  finance:     {label:"Finance",     info:0.23, struct:0.33, assist:0.21, avg:0.24},
+  prosocial:   {label:"Prosocial",   info:0.37, struct:0.48, assist:0.21, avg:0.41},
+  other:       {label:"Other",       info:0.27, struct:0.41, assist:0.20, avg:0.31}
+};
+// Publication-bias sensitivity analysis reported by Mertens et al.:
+// unadjusted d = 0.40 (tau^2 = 0.16); moderate bias -> d = 0.31 (tau^2 = 0.18); severe -> d = 0.08 (tau^2 = 0.26).
+const BIAS = {
+  none:     {label:"As published (no adjustment)",         mult:1.00,      tau:Math.sqrt(0.16)},
+  moderate: {label:"Moderate publication bias adjustment (default)", mult:0.31/0.40, tau:Math.sqrt(0.18)},
+  severe:   {label:"Severe publication bias adjustment",   mult:0.08/0.40, tau:Math.sqrt(0.26)}
+};
+const HETERO = {
+  off:     {label:"None: every run uses the average effects", scale:0},
+  partial: {label:"Partial: half the estimated spread",       scale:0.5},
+  full:    {label:"Full: the spread Mertens et al. estimated", scale:1}
+};
+const D_TO_LOGOR = Math.PI/Math.sqrt(3); // Chinn (2000): ln(OR) = d x 1.81
+const COMBO_WEIGHTS = [1, 0.5, 0.25];    // game assumption: diminishing returns when stacking nudges
+const MAX_NUDGES = 3;
+const N_PER_ARM = 5000;
+const ORDER = ["default","effort","composition","consequence","translation","visibility","social","reminder","commitment"];
+
+/* =====================================================================
+   MISSIONS: fictional scenarios; baselines are illustrative.
+   Targets are computed from the model (see computeTarget).
+   ===================================================================== */
+const MISSIONS = [
+ { id:"cafe", emoji:"☕", domain:"other", domainLabel:"Purchasing", fixedTarget:0.58, title:"House roast vs. name brand",
+   brief:"The campus café wants more customers to choose its house-roast coffee (Item A) over the name-brand pod coffee (Item B).",
+   outcome:"choose Item A", base:0.35,
+   nudges:{
+     translation:{n:"Reframe the price gap", d:"\"Save $120 a year\" instead of \"$0.40 less per cup\"."},
+     visibility:{n:"Taste-test scores", d:"Show blind taste-test ratings beside the menu."},
+     social:{n:"\"Regulars' favorite\" sign", d:"\"7 in 10 regulars pick the house roast.\""},
+     default:{n:"Make A the app default", d:"Plain \"coffee\" in the ordering app means house roast unless changed."},
+     composition:{n:"Add a premium decoy", d:"Add an overpriced 'reserve' option that makes A look like the sensible middle."},
+     consequence:{n:"Loyalty stamp for A", d:"Every house-roast purchase earns a stamp toward a free drink."},
+     reminder:{n:"Morning app push", d:"\"Today's house roast: Ethiopian Yirgacheffe.\""},
+     commitment:{n:"\"Try it for a week\" card", d:"Customers sign a card pledging to try A five times."}
+   }},
+ { id:"retire", emoji:"🏦", domain:"finance", title:"Save for retirement",
+   brief:"A mid-size employer wants more new hires to enroll in the company retirement plan within 90 days.",
+   outcome:"enroll in the plan", base:0.40,
+   nudges:{
+     translation:{n:"Show monthly income", d:"Show the balance as \"$1,850/month in retirement\" rather than a lump sum."},
+     visibility:{n:"Personalized projection", d:"Each hire gets a statement projecting their own savings path."},
+     social:{n:"Peer enrollment rate", d:"\"Most coworkers your age are enrolled.\""},
+     default:{n:"Automatic enrollment", d:"New hires are enrolled at 4% unless they opt out."},
+     effort:{n:"One-click enrollment", d:"Replace the 6-page form with a single pre-filled click."},
+     consequence:{n:"Enrollment raffle", d:"Everyone who enrolls is entered into a $500 drawing."},
+     reminder:{n:"Deadline texts", d:"Text reminders at day 30, 60, and 85."},
+     commitment:{n:"Save More Tomorrow pledge", d:"Pre-commit now to start saving with your next raise."}
+   }},
+ { id:"blood", emoji:"🩸", domain:"prosocial", targetStep:0.01, title:"Campus blood drive",
+   brief:"The campus blood drive wants more students to donate during drive week.",
+   outcome:"donate blood", base:0.12,
+   nudges:{
+     translation:{n:"\"One donation, three lives\"", d:"Translate a pint into the number of patients it helps."},
+     visibility:{n:"Live supply gauge", d:"Display the regional blood supply level outside the student center."},
+     social:{n:"Donor counter", d:"\"1,200 students donated last term.\""},
+     effort:{n:"Walk-in bus on the quad", d:"A mobile donation bus sits at the busiest crossing; no appointment needed."},
+     composition:{n:"Three easy slots", d:"Offer three convenient time slots instead of a full calendar."},
+     consequence:{n:"Donor T-shirt and badge", d:"Donors get a shirt and a social-media badge."},
+     reminder:{n:"Day-of reminder", d:"Text on the morning of drive week."},
+     commitment:{n:"Pledge wall", d:"Students sign a public pledge to donate."}
+   }},
+ { id:"buffet", emoji:"🥦", domain:"food", title:"Vegetables at the buffet",
+   brief:"The dining hall wants more students to put vegetables on their plate at the lunch buffet.",
+   outcome:"take vegetables", base:0.30,
+   nudges:{
+     translation:{n:"Tasty descriptive names", d:"\"Twisted citrus-glazed carrots\" instead of \"carrots\"."},
+     visibility:{n:"Nutrition labels", d:"Add calorie and nutrient labels to every dish."},
+     social:{n:"Popularity cue", d:"\"Most diners here add a vegetable side.\""},
+     effort:{n:"Veg first in line", d:"Move vegetables to the start of the line, at arm's reach."},
+     composition:{n:"Bigger veg range", d:"Triple the vegetable options and shrink the fries station."},
+     consequence:{n:"Veg-plate discount", d:"Plates with a vegetable side cost $0.50 less."},
+     reminder:{n:"Tray-station sign", d:"\"Don't forget your veggies!\" at the tray pickup."},
+     commitment:{n:"Weekly veg pledge", d:"Students pledge a veg-a-day goal on their meal card."}
+   }},
+ { id:"flu", emoji:"💉", domain:"health", title:"Flu shots at work",
+   brief:"A hospital system wants more of its office staff to get a flu shot this season.",
+   outcome:"get vaccinated", base:0.45,
+   nudges:{
+     translation:{n:"Loss framing", d:"\"Don't lose a week to the flu\" instead of \"Stay healthy\"."},
+     visibility:{n:"Personal risk info", d:"Show each employee their age-group risk of missing work."},
+     social:{n:"Department leaderboard", d:"Post each department's vaccination rate."},
+     effort:{n:"Walk-in clinic on-site", d:"Pop-up clinic by the cafeteria, no paperwork."},
+     composition:{n:"Bundle with check-up", d:"Offer the shot as part of the annual wellness check."},
+     consequence:{n:"$10 gift card", d:"Small reward for getting vaccinated."},
+     reminder:{n:"Email and text reminders", d:"Two reminders during the clinic window."},
+     commitment:{n:"Plan-making prompt", d:"Employees write down the date and time they will go."}
+   }},
+ { id:"green", emoji:"⚡", domain:"environment", fixedTarget:0.28, title:"Green energy plan",
+   brief:"A city utility wants more households to choose its 100% renewable electricity plan.",
+   outcome:"choose the green plan", base:0.10,
+   nudges:{
+     translation:{n:"Cost per day", d:"\"Just 9¢ a day\" instead of \"$33 a year\"."},
+     visibility:{n:"Carbon on the bill", d:"Print household CO₂ emissions on every bill."},
+     social:{n:"Neighbor comparison", d:"\"Households on your street are switching.\""},
+     default:{n:"Green plan as default", d:"New accounts start on the green plan; one click to switch back."},
+     effort:{n:"Switch-by-text", d:"Reply GREEN to switch; no login required."},
+     composition:{n:"Fewer, clearer tiers", d:"Present just three plans with green in the middle."},
+     reminder:{n:"Bill-insert reminder", d:"A reminder insert in the monthly bill."},
+     commitment:{n:"Neighborhood pledge", d:"Residents pledge to switch by Earth Day."}
+   }}
+];
+
+/* =====================================================================
+   Settings (URL params ?bias=&hetero=) + per-browser persistence
+   ===================================================================== */
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem("nudgelab:"+k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem("nudgelab:"+k, JSON.stringify(v)); }catch(e){} }
+};
+const params = new URLSearchParams(location.search);
+const LOCKED = { bias: !!BIAS[params.get("bias")], hetero: !!HETERO[params.get("hetero")] };
+const SETTINGS = {
+  bias:   LOCKED.bias   ? params.get("bias")   : store.get("bias","moderate"),
+  hetero: LOCKED.hetero ? params.get("hetero") : store.get("hetero","partial")
+};
+if(!BIAS[SETTINGS.bias]) SETTINGS.bias="moderate";
+if(!HETERO[SETTINGS.hetero]) SETTINGS.hetero="partial";
+
+/* =====================================================================
+   Model
+   ===================================================================== */
+function rand(){ try{ const b=new Uint32Array(1); crypto.getRandomValues(b); return (b[0]+0.5)/4294967296; }catch(e){ return Math.random(); } }
+function gauss(){ let u=0,v=0; while(u===0)u=rand(); while(v===0)v=rand(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function binom(n,p){ let k=0; for(let i=0;i<n;i++) if(rand()<p) k++; return k; }
+const logit = p => Math.log(p/(1-p));
+const ilogit = x => 1/(1+Math.exp(-x));
+// Average effect for a technique in a domain:
+//   d = d(category | domain, Fig. 5) x d(technique) / d(category)   (Table 2), times the bias multiplier.
+function metaD(tech, domain, bias){
+  const t=TECHNIQUE[tech];
+  return DOMAIN[domain][t.cat] * (t.d / CATEGORY[t.cat].d) * BIAS[bias].mult;
+}
+function combineD(ds){ return [...ds].sort((a,b)=>b-a).reduce((s,x,i)=>s+x*(COMBO_WEIGHTS[i]??0),0); }
+// For simulated runs: weights follow each nudge's AVERAGE effect (strongest on average gets weight 1),
+// applied to that run's random draws. Re-sorting the draws themselves would bias every run upward.
+function combineDraws(m, nudges, bias, drawOf){
+  return [...nudges].sort((a,b)=>metaD(b,m.domain,bias)-metaD(a,m.domain,bias))
+    .reduce((s,t,i)=>s+drawOf(t)*(COMBO_WEIGHTS[i]??0),0);
+}
+function rateWith(base,d){ return ilogit(logit(base)+D_TO_LOGOR*d); }
+function tauFor(bias,hetero){ return BIAS[bias].tau*HETERO[hetero].scale; }
+const avail = m => ORDER.filter(t=>m.nudges[t]);
+function allCombos(m){ const out=[], O=avail(m), k=O.length;
+  for(let a=0;a<k;a++){ out.push([O[a]]);
+    for(let b=a+1;b<k;b++){ out.push([O[a],O[b]]);
+      for(let c=b+1;c<k;c++) out.push([O[a],O[b],O[c]]); } }
+  return out; }
+function expectedRate(m, nudges, bias){ return rateWith(m.base, combineD(nudges.map(t=>metaD(t,m.domain,bias)))); }
+function rankCombos(m, bias){
+  return allCombos(m).map(c=>({nudges:c, rate:expectedRate(m,c,bias)})).sort((a,b)=>b.rate-a.rate);
+}
+// Target: the best package's average outcome under the moderate publication-bias adjustment (the default),
+// rounded DOWN to the nearest 5% (1% steps for the blood drive; café 58% and green energy 28% are set by hand via fixedTarget), so at least one package reaches it on average.
+const TARGET_BIAS = "moderate";
+function computeTarget(m){ if(m.fixedTarget) return m.fixedTarget; const step=m.targetStep||0.05, best=rankCombos(m,TARGET_BIAS)[0].rate; return Math.round(1000*Math.floor(best/step+1e-9)*step)/1000; }
+MISSIONS.forEach(m=>m.target=computeTarget(m));
+// Monte Carlo: share of contexts in which a package reaches the target (ignores sampling noise, which is small at n = 5,000).
+// Packages within 0.1 percentage points of the top average outcome count as "the best" (near-ties exist).
+function bestKeys(m,bias){ const r=rankCombos(m,bias), top=r[0].rate; return r.filter(c=>top-c.rate<0.001).map(c=>[...c.nudges].sort().join("+")); }
+function hitShare(m, nudges, bias, hetero, R=3000){
+  const tau=tauFor(bias,hetero); if(tau===0) return expectedRate(m,nudges,bias)>=m.target?1:0;
+  let h=0; for(let i=0;i<R;i++){ const d=combineDraws(m,nudges,bias,t=>metaD(t,m.domain,bias)+tau*gauss()); if(rateWith(m.base,d)>=m.target) h++; }
+  return h/R;
+}
+
+/* stats */
+function erf(x){ const s=Math.sign(x); x=Math.abs(x);
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const t=1/(1+p*x); return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x)); }
+function analyze(n,kC,kT){
+  const pC=kC/n, pT=kT/n, diff=pT-pC, se=Math.sqrt(pC*(1-pC)/n+pT*(1-pT)/n);
+  const sC=Math.sqrt(pC*(1-pC)/n), sT=Math.sqrt(pT*(1-pT)/n);
+  return {pC,pT,diff,lo:diff-1.96*se,hi:diff+1.96*se,ciC:[pC-1.96*sC,pC+1.96*sC],ciT:[pT-1.96*sT,pT+1.96*sT]};
+}
+
+/* =====================================================================
+   Game state
+   ===================================================================== */
+let G=null;
+function startMission(id){
+  const m=MISSIONS.find(x=>x.id===id);
+  G={m, bias:SETTINGS.bias, hetero:SETTINGS.hetero, selected:[], runs:[], revealed:false, best:bestKeys(m,SETTINGS.bias)};
+  render("mission");
+}
+function simulate(){
+  if(!G.selected.length) return;
+  const m=G.m, tau=tauFor(G.bias,G.hetero);
+  const draws={}; G.selected.forEach(t=>{ const mu=metaD(t,m.domain,G.bias); draws[t]={mu, d:mu+tau*gauss()}; });
+  const dPkg=combineDraws(m,G.selected,G.bias,t=>draws[t].d);
+  const pTrue=rateWith(m.base,dPkg);
+  const kC=binom(N_PER_ARM,m.base), kT=binom(N_PER_ARM,pTrue);
+  const a=analyze(N_PER_ARM,kC,kT);
+  G.runs.push({i:G.runs.length+1, nudges:[...G.selected], key:[...G.selected].sort().join("+"), draws, dPkg, pTrue, a, hit:a.pT>=m.target, isBest:G.best.includes([...G.selected].sort().join("+"))});
+  const first=G.runs.length===1;
+  render("mission", true);
+  const fb=document.getElementById("feedback");
+  if(fb && first) fb.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function replay(){ G.selected=[]; G.runs=[]; G.revealed=false; render("mission"); }
+
+/* =====================================================================
+   Formatting helpers
+   ===================================================================== */
+const $view=document.getElementById("view");
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct=(x,dp=1)=>(100*x).toFixed(dp)+"%";
+const domLabel=m=>m.domainLabel||DOMAIN[m.domain].label;
+const fmtT=x=>{ const v=Math.round(x*1000)/10; return (Number.isInteger(v)?v.toFixed(0):v.toFixed(1))+"%"; };
+const pts=(x,dp=1)=>(x>=0?"+":"−")+Math.abs(100*x).toFixed(dp)+" pts";
+const fd=x=>(x>=0?"":"−")+Math.abs(x).toFixed(2);
+const catTag=cat=>`<span class="tag ${cat}">${CATEGORY[cat].short}</span>`;
+const nname=t=>G.m.nudges[t].n;
+
+function updateBanner(){
+  const b=document.getElementById("modeBanner"), bits=[];
+  if(LOCKED.bias||LOCKED.hetero) bits.push(`Your instructor's link set the model: <b>${BIAS[SETTINGS.bias].label}</b>; variation: <b>${HETERO[SETTINGS.hetero].label.split(":")[0]}</b>.`);
+  b.innerHTML=bits.join(" "); b.classList.toggle("hidden",!bits.length);
+}
+
+/* =====================================================================
+   Home
+   ===================================================================== */
+function viewHome(){
+  const lockNote=k=>LOCKED[k]?" (set by link)":"";
+  return `
+  <div class="stack">
+    <div class="card">
+      <h2>You're the choice architect</h2>
+      <p>Pick a mission. Each one has a behavior to change and a <b>target</b>. Choose up to ${MAX_NUDGES} nudges, simulate what happens, and try to get as high as you can.</p>
+      <p class="muted small">Average effects come from a meta-analysis of 447 effect sizes: <a href="https://doi.org/10.1073/pnas.2107346118" target="_blank" rel="noopener">Mertens et al. (2022), <i>The effectiveness of nudging</i>, PNAS</a>, with their moderate adjustment for publication bias. Each simulation adds realistic variation, the way the same nudge works differently in different places.</p>
+    </div>
+    <div class="grid missions">
+      ${MISSIONS.map(m=>`
+        <button class="card mission" data-start="${m.id}">
+          <span class="emoji" aria-hidden="true">${m.emoji}</span>
+          <h3>${esc(m.title)}</h3>
+          <span class="small muted">${esc(m.brief)}</span>
+          <span class="small"><span class="tag">${domLabel(m)}</span> &nbsp; ${pct(m.base,0)} → target <b>${fmtT(m.target)}</b> ${esc(m.outcome)}</span>
+        </button>`).join("")}
+    </div>
+    <details class="card">
+      <summary><b>Settings</b> <span class="muted small">(for instructors)</span></summary>
+      <div class="settings" style="margin-top:12px">
+        <label>Effect sizes${lockNote("bias")}
+          <select id="setBias" ${LOCKED.bias?"disabled":""}>
+            ${Object.entries(BIAS).map(([k,v])=>`<option value="${k}" ${k===SETTINGS.bias?"selected":""}>${v.label}</option>`).join("")}
+          </select></label>
+        <label>Variation between simulations${lockNote("hetero")}
+          <select id="setHetero" ${LOCKED.hetero?"disabled":""}>
+            ${Object.entries(HETERO).map(([k,v])=>`<option value="${k}" ${k===SETTINGS.hetero?"selected":""}>${v.label}</option>`).join("")}
+          </select></label>
+      </div>
+      <p class="small muted" style="margin-top:12px">Targets are set from the moderate-adjusted effects and stay fixed, so they get easier with the as-published effects and out of reach with the severe adjustment. That contrast is the point. Share these settings with your class:</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="shareLink" readonly aria-label="Share link" style="flex:1;min-width:0;font:inherit;font-size:.85rem;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink)"><button id="copyLink">Copy</button></div>
+    </details>
+  </div>`;
+}
+function shareURL(){ const u=new URL(location.href.split("?")[0]); u.searchParams.set("bias",SETTINGS.bias); u.searchParams.set("hetero",SETTINGS.hetero); return u.toString(); }
+function bindHome(){
+  document.querySelectorAll("[data-start]").forEach(b=>b.onclick=()=>startMission(b.dataset.start));
+  const sb=document.getElementById("setBias"), sh=document.getElementById("setHetero"), link=document.getElementById("shareLink");
+  link.value=shareURL();
+  sb.onchange=()=>{SETTINGS.bias=sb.value; store.set("bias",sb.value); link.value=shareURL();};
+  sh.onchange=()=>{SETTINGS.hetero=sh.value; store.set("hetero",sh.value); link.value=shareURL();};
+  document.getElementById("copyLink").onclick=async e=>{ try{ await navigator.clipboard.writeText(link.value); e.target.textContent="Copied"; }catch(err){ link.select(); } };
+}
+
+/* =====================================================================
+   Charts
+   ===================================================================== */
+function barChart(a, target){
+  const W=340,H=88,L=70,R=14,max=Math.min(1,Math.max(target,a.ciT[1],a.ciC[1])*1.12+0.02);
+  const x=v=>L+(W-L-R)*Math.max(0,Math.min(1,v/max));
+  const row=(y,label,p,ci,color)=>`
+    <text x="${L-8}" y="${y+4}" text-anchor="end" font-size="12">${label}</text>
+    <rect x="${L}" y="${y-8}" width="${Math.max(0,x(p)-L)}" height="16" rx="3" fill="${color}" opacity=".9"></rect>
+    <text x="${Math.min(x(p)+5,W-R-2)}" y="${y+4}" font-size="11" font-weight="600" ${x(p)+40>W-R?'text-anchor="end" style="fill:var(--card)"':""}>${pct(p)}</text>
+    <line x1="${x(ci[0])}" x2="${x(ci[1])}" y1="${y}" y2="${y}" stroke="var(--ink)" stroke-width="1.2" opacity=".6"></line>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:440px" role="img" aria-label="Control ${pct(a.pC)}, with nudges ${pct(a.pT)}, target ${fmtT(target)}">
+    ${row(20,"Control",a.pC,a.ciC,"var(--control)")}
+    ${row(50,"Nudged",a.pT,a.ciT,"var(--treat)")}
+    <line x1="${x(target)}" x2="${x(target)}" y1="6" y2="64" stroke="var(--warn)" stroke-dasharray="4 3" stroke-width="1.6"></line>
+    <text x="${x(target)}" y="80" text-anchor="middle" font-size="10.5" style="fill:var(--warn)">target ${fmtT(target)}</text>
+  </svg>`;
+}
+function historyChart(){
+  const narrow=innerWidth<600, m=G.m, runs=G.runs, W=narrow?360:640, H=narrow?230:250, L=42, R=12, T=14, B=34;
+  const vals=runs.map(r=>r.a.pT).concat([m.base,m.target]);
+  let lo=Math.max(0,Math.floor((Math.min(...vals)-0.05)*20)/20), hi=Math.min(1,Math.ceil((Math.max(...vals)+0.05)*20)/20);
+  const y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const n=runs.length, x=i=> n===1 ? (L+W-R)/2 : L+(W-L-R)*( (i-1)/(n-1) );
+  const ticks=[]; const step=(hi-lo)>0.4?0.1:0.05; for(let v=Math.ceil(lo/step-1e-9)*step; v<=hi+1e-9; v+=step) ticks.push(v);
+  const xt=[]; const xs=Math.max(1,Math.ceil(n/10)); for(let i=1;i<=n;i+=xs) xt.push(i); if(xt[xt.length-1]!==n) xt.push(n);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="group" aria-label="History of simulation outcomes">
+    ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"></line>
+      <text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" style="fill:var(--muted)">${Math.round(v*100)}%</text>`).join("")}
+    ${xt.map(i=>`<text x="${x(i)}" y="${H-B+18}" text-anchor="middle" font-size="11" style="fill:var(--muted)">${i}</text>`).join("")}
+    <text x="${(L+W-R)/2}" y="${H-3}" text-anchor="middle" font-size="11" style="fill:var(--muted)">Simulation</text>
+    <line x1="${L}" x2="${W-R}" y1="${y(m.base)}" y2="${y(m.base)}" stroke="var(--control)" stroke-dasharray="3 3" stroke-width="1.5"></line>
+    <text x="${W-R}" y="${y(m.base)-5}" text-anchor="end" font-size="11" style="fill:var(--control)">baseline ${pct(m.base,0)}</text>
+    <line x1="${L}" x2="${W-R}" y1="${y(m.target)}" y2="${y(m.target)}" stroke="var(--warn)" stroke-dasharray="5 3" stroke-width="1.6"></line>
+    <text x="${W-R}" y="${y(m.target)-5}" text-anchor="end" font-size="11" style="fill:var(--warn)">target ${fmtT(m.target)}</text>
+    ${runs.map(r=>{ const last=r.i===n; const col=r.hit?"var(--good)":"var(--treat)";
+      return `<g class="pt" tabindex="0" data-run="${r.i}" aria-label="Simulation ${r.i}: ${pct(r.a.pT)} with ${esc(r.nudges.map(nname).join(", "))}">
+        <circle cx="${x(r.i)}" cy="${y(r.a.pT)}" r="14" fill="transparent"></circle>
+        <circle class="ring" cx="${x(r.i)}" cy="${y(r.a.pT)}" r="${last?7:5.5}" fill="${r.hit?col:"var(--card)"}" stroke="${col}" stroke-width="2"></circle>
+      </g>`;}).join("")}
+  </svg>`;
+}
+
+/* =====================================================================
+   Mission view
+   ===================================================================== */
+function viewMission(){
+  const m=G.m, sel=G.selected, last=G.runs[G.runs.length-1];
+  const tool=t=>{ const nd=m.nudges[t], T=TECHNIQUE[t], on=sel.includes(t), dis=!on&&sel.length>=MAX_NUDGES;
+    return `<button class="tool ${on?"sel":""}" data-tool="${t}" ${dis?"disabled":""} aria-pressed="${on}">
+      <div class="row"><span class="name">${esc(nd.n)}</span>${on?'<span class="tick" aria-hidden="true">✓</span>':""}</div>
+      <div class="desc">${esc(nd.d)}</div>
+      <div class="row"><span class="tech">${T.label}</span>${catTag(T.cat)}</div>
+    </button>`; };
+  return `
+  <div class="layout">
+    <div class="stack">
+      <div class="card">
+        <div class="small"><button class="link" data-go="home" style="padding-left:0">← All missions</button></div>
+        <h2>${m.emoji} ${esc(m.title)}</h2>
+        <p>${esc(m.brief)}</p>
+        <div class="chips">
+          <span class="chip">Domain: <b>${domLabel(m)}</b></span>
+          <span class="chip">Baseline: <b>${pct(m.base,0)}</b> ${esc(m.outcome)}</span>
+          <span class="chip">Target: <b>${fmtT(m.target)}</b></span>
+        </div>
+      </div>
+      <div>
+        <div class="legend" style="margin-bottom:8px">
+          <span><i style="background:var(--struct)"></i>Structure: change the choice itself</span>
+          <span><i style="background:var(--info)"></i>Information: change what people know</span>
+          <span><i style="background:var(--assist)"></i>Assistance: help people follow through</span></div>
+        <div class="grid tools">${avail(m).map(tool).join("")}</div>
+      </div>
+      <div id="feedback" class="stack">${G.runs.length? viewFeedback(last) : ""}</div>
+    </div>
+    <aside class="side card">
+      <div class="wide">
+        <h3>Your nudges <span class="muted small">(${sel.length}/${MAX_NUDGES})</span></h3>
+        ${sel.length? `<div class="chips">${sel.map(t=>`<span class="chip">${esc(nname(t))}</span>`).join("")}</div>` : `<p class="muted small">Pick up to ${MAX_NUDGES} nudges on the left.</p>`}
+        <p class="small muted" style="margin:10px 0">Each simulation randomizes ${N_PER_ARM.toLocaleString()} people to a control group and ${N_PER_ARM.toLocaleString()} to your nudges, in a new setting.</p>
+      </div>
+      <div class="bar">
+        <span class="count small"><b>${sel.length}/${MAX_NUDGES}</b> nudges selected</span>
+        <button class="primary" id="simulate" style="min-width:140px;width:100%;max-width:100%" ${sel.length?"":"disabled"}>${G.runs.length?"Simulate again":"Simulate"}</button>
+      </div>
+    </aside>
+  </div>`;
+}
+
+function bestCallout(r,varOn){
+  const tie=G.best.length>1;
+  if(r.isBest) return `<div class="callout good" style="margin:10px 0"><b>✓ You tested the best combination.</b> No other set of nudges does better on average${tie?` (it's tied with one other set, within 0.1 points)`:""}.${varOn&&!r.hit?" Missing the target this time is variation between settings, not your choice of nudges.":""}</div>`;
+  const prev=G.runs.filter(x=>x.isBest).map(x=>x.i);
+  return `<div class="callout warn" style="margin:10px 0"><b>✗ Not the best combination.</b> ${prev.length?`You did test it in simulation${prev.length>1?"s":""} ${prev.join(", ")}.`:"You haven't tested the best combination yet."} Swap nudges and simulate again, or reveal the best strategy below.</div>`;
+}
+function viewFeedback(r){
+  const m=G.m, a=r.a, gap=a.pT-m.target;
+  const same=G.runs.filter(x=>x.key===r.key);
+  const mean=same.reduce((s,x)=>s+x.a.pT,0)/same.length;
+  const varOn=tauFor(G.bias,G.hetero)>0;
+  const best=Math.max(...G.runs.map(x=>x.a.pT));
+  return `
+  <div class="card fb-enter" aria-live="polite">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">Simulation ${r.i}</h2>
+      ${r.hit?`<span class="pill good">Target reached (${pts(gap)} above)</span>`:`<span class="pill bad">${pts(-gap).replace("+","")} below target</span>`}
+    </div>
+    <div class="chips" style="margin:8px 0">${r.nudges.map(t=>`<span class="chip">${esc(nname(t))}</span>`).join("")}</div>
+    ${bestCallout(r,varOn)}
+    ${barChart(a,m.target)}
+    <div class="stats">
+      <div class="stat"><div class="lbl">With your nudges</div><div class="val" style="color:${r.hit?"var(--good)":"inherit"}">${pct(a.pT)}</div><div class="sub">${esc(m.outcome)}</div></div>
+      <div class="stat"><div class="lbl">Effect vs. control</div><div class="val">${pts(a.diff)}</div><div class="sub">95% CI ${pts(a.lo)} to ${pts(a.hi)}</div></div>
+      ${same.length>1?`<div class="stat"><div class="lbl">Average for this set (${same.length} runs)</div><div class="val">${pct(mean)}</div><div class="sub">range ${pct(Math.min(...same.map(x=>x.a.pT)))} to ${pct(Math.max(...same.map(x=>x.a.pT)))}</div></div>`
+        :`<div class="stat"><div class="lbl">Your best so far</div><div class="val">${pct(best)}</div><div class="sub">across ${G.runs.length} simulation${G.runs.length===1?"":"s"}</div></div>`}
+    </div>
+    ${varOn?`<p class="small muted" style="margin:0">Each simulation is a new setting: your nudges' true effects are drawn around their research averages, like running the same study at a different company or campus. Simulate again with the same nudges to see how much results move.</p>`
+           :`<p class="small muted" style="margin:0">Variation is off, so every simulation uses the average effects; only sampling noise changes between runs.</p>`}
+    <div class="btnrow">
+      <button class="primary" id="again" ${G.selected.length?"":"disabled"}>Simulate again</button>
+      <button id="replay">Replay this scenario</button>
+      <button data-go="home">All missions</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+      <h3 style="margin:0">Your simulations</h3>
+      <div class="legend"><span><i class="dot" style="background:var(--good)"></i>Reached target</span><span><i class="dot" style="border:2px solid var(--treat);width:9px;height:9px"></i>Below target</span></div>
+    </div>
+    <p class="small muted" style="margin:4px 0 6px">Hover over or tap a point to see which nudges you used.</p>
+    ${historyChart()}
+    <details style="margin-top:6px"><summary class="small">Show as a table</summary>
+      <div class="tablewrap" style="margin-top:8px"><table>
+        <thead><tr><th>#</th><th>Nudges</th><th class="num">Result</th><th class="num">Effect</th><th>Best combo?</th></tr></thead>
+        <tbody>${[...G.runs].reverse().map(x=>`<tr><td>${x.i}</td><td>${esc(x.nudges.map(nname).join(", "))}</td><td class="num" style="color:${x.hit?"var(--good)":"inherit"}">${pct(x.a.pT)}</td><td class="num">${pts(x.a.diff)}</td><td>${x.isBest?"✓ yes":"no"}</td></tr>`).join("")}</tbody>
+      </table></div></details>
+  </div>
+
+  <div class="card">
+    ${G.revealed? viewReveal() : `
+      <h3>Stuck, or done exploring?</h3>
+      <p class="small muted">See which nudges work best on average for this mission, and why.</p>
+      <button id="reveal">Reveal the best strategy</button>`}
+  </div>`;
+}
+
+function viewReveal(){
+  const m=G.m, ranked=rankCombos(m,G.bias), top=ranked.slice(0,5);
+  const reach=ranked.filter(c=>c.rate>=m.target).length;
+  const bestShare=hitShare(m,ranked[0].nudges,G.bias,G.hetero);
+  const last=G.runs[G.runs.length-1];
+  const lastRank=ranked.findIndex(c=>[...c.nudges].sort().join("+")===last.key)+1;
+  const lastShare=hitShare(m,last.nudges,G.bias,G.hetero);
+  const varOn=tauFor(G.bias,G.hetero)>0;
+  const rows=avail(m).sort((a,b)=>metaD(b,m.domain,G.bias)-metaD(a,m.domain,G.bias)).map(t=>{
+    const used=last.nudges.includes(t), dr=last.draws[t];
+    return `<tr ${used?'style="font-weight:600"':""}>
+      <td>${esc(nname(t))}${used?" ✓":""}</td><td>${TECHNIQUE[t].label} ${catTag(TECHNIQUE[t].cat)}</td>
+      <td class="num">${fd(metaD(t,m.domain,G.bias))}</td>
+      <td class="num">${pct(rateWith(m.base,metaD(t,m.domain,G.bias)))}</td>
+      ${varOn?`<td class="num" style="color:${dr&&dr.d<0?"var(--bad)":"inherit"}">${dr?fd(dr.d):"<span class='muted'>–</span>"}</td>`:""}</tr>`;}).join("");
+  const notes=[];
+  notes.push(`<b>Structure beats information and assistance.</b> Across domains, Mertens et al. found decision-structure nudges (defaults, effort, composition, consequences) had the largest effects, d = 0.54 vs. 0.34 for information and 0.28 for assistance. Defaults were the single strongest technique (d = 0.62).`);
+  notes.push(`<b>The best packages are close.</b> The top packages differ by only about a point on average, because the third nudge adds little under the stacking rule. Mertens et al. <i>excluded</i> studies that combined techniques, so how nudges add up is a game assumption (largest effect counts in full, the 2nd half, the 3rd a quarter), not a research finding.`);
+  if(varOn) notes.push(`<b>Variation swamps those differences.</b> Even the best package reaches the target in only about ${Math.round(100*bestShare)}% of settings. Your last set (ranked #${lastRank} of ${ranked.length}) reaches it in about ${Math.round(100*lastShare)}%. One good or bad run says little about a nudge; that's why replications and meta-analyses matter.`);
+  notes.push(`<b>Why do the winners differ across missions?</b> Mostly because each mission offers a different set of nudges (not every technique fits every setting; for example, you can't sensibly default someone into donating blood). The paper reports effects by technique and by category within each domain, but not by technique within each domain, so the game can't say that, say, reminders work unusually well for blood donation. What the domain does change is overall responsiveness: food responds about 2.5× more than finance.`);
+  if(G.bias==="moderate") notes.push(`<b>These effects are already adjusted for publication bias.</b> Mertens et al. found that successful studies were more likely to be published, and their moderate adjustment shrinks the average effect by about 22% (d = 0.40 → 0.31); that's what the game uses. Under their <i>severe</i> adjustment (−80%), no package reaches these targets. Maier et al. (2022) argued that after fully correcting for bias, there's no evidence for an average nudge effect, though some nudges may still work. (Try it under Settings on the Missions page.)`);
+  else if(G.bias==="none") notes.push(`<b>You're viewing the effects as published.</b> Mertens et al. found evidence that these are inflated by publication bias. Targets are set for the moderate adjustment (the default), so ${reach} of ${ranked.length} packages clear them here.`);
+  else notes.push(`<b>You're viewing the severe publication-bias adjustment</b>: average effects shrink by 80%. Targets are set for the moderate adjustment${reach?"":`, so none of the ${ranked.length} packages reaches the target on average`}. Maier et al. (2022) argued that after correcting for bias, there's no evidence for an average nudge effect, though some nudges may still work.`);
+  return `
+    <h3>The best strategy for this mission</h3>
+    <p class="small muted">"Average outcome" assumes every nudge has its average effect from Mertens et al. (2022)${G.bias!=="none"?`, ${BIAS[G.bias].label.toLowerCase()}`:""}. ${reach} of ${ranked.length} possible packages reach the ${fmtT(m.target)} target on average.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Rank</th><th>Package</th><th class="num">Average outcome</th></tr></thead>
+      <tbody>${top.map((c,i)=>`<tr><td>${i+1}</td><td>${esc(c.nudges.map(nname).join(" + "))}</td><td class="num" style="color:${c.rate>=m.target?"var(--good)":"inherit"}">${pct(c.rate)}</td></tr>`).join("")}
+      ${lastRank>5?`<tr style="font-weight:600"><td>${lastRank}</td><td>Your last set: ${esc(last.nudges.map(nname).join(" + "))}</td><td class="num">${pct(expectedRate(m,last.nudges,G.bias))}</td></tr>`:""}</tbody>
+    </table></div>
+    <h3 style="margin-top:18px">Behind the curtain: every nudge</h3>
+    <p class="small muted">"Average d" is the research average for this technique in the ${m.domainLabel?`${m.domainLabel.toLowerCase()} scenario (the paper's "${DOMAIN[m.domain].label.toLowerCase()}" domain)`:`${DOMAIN[m.domain].label.toLowerCase()} domain`}. "Alone →" is the outcome that nudge would produce by itself on average.${varOn?" \"Last run\" is the effect each of your nudges actually had in your most recent simulation.":""}</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Nudge</th><th>Technique</th><th class="num">Average d</th><th class="num">Alone →</th>${varOn?'<th class="num">Last run</th>':""}</tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <h3 style="margin-top:18px">What's going on</h3>
+    <ul class="small">${notes.map(n=>`<li style="margin-bottom:6px">${n}</li>`).join("")}</ul>
+    <button id="hide">Hide</button>`;
+}
+
+function bindMission(){
+  document.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{
+    const t=b.dataset.tool, i=G.selected.indexOf(t);
+    if(i>=0) G.selected.splice(i,1); else if(G.selected.length<MAX_NUDGES) G.selected.push(t);
+    render("mission",true);
+  });
+  document.getElementById("simulate").onclick=simulate;
+  const ag=document.getElementById("again"); if(ag) ag.onclick=simulate;
+  const rp=document.getElementById("replay"); if(rp) rp.onclick=replay;
+  const rv=document.getElementById("reveal"); if(rv) rv.onclick=()=>{G.revealed=true; render("mission",true);};
+  const hd=document.getElementById("hide"); if(hd) hd.onclick=()=>{G.revealed=false; render("mission",true);};
+  bindTips();
+}
+
+/* tooltips for history points (hover, keyboard focus, tap) */
+const tip=document.getElementById("tip");
+function showTip(g){
+  const r=G.runs[+g.dataset.run-1]; if(!r) return;
+  tip.innerHTML=`<b>Simulation ${r.i}: ${pct(r.a.pT)}</b>
+    <div class="muted" style="margin-bottom:4px">${pts(r.a.diff)} vs. control · ${r.hit?"reached target":"below target"}${r.isBest?" · <b style=\"display:inline;color:var(--good)\">best combination</b>":""}</div>
+    ${r.nudges.map(t=>`<div>• ${esc(nname(t))} <span class="muted">(${TECHNIQUE[t].label})</span></div>`).join("")}`;
+  tip.classList.remove("hidden");
+  const c=g.querySelector("circle.ring").getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+  let left=c.left+c.width/2-tw/2, top=c.top-th-10;
+  left=Math.max(8,Math.min(left,innerWidth-tw-8)); if(top<8) top=c.bottom+10;
+  tip.style.left=left+"px"; tip.style.top=top+"px";
+}
+const hideTip=()=>tip.classList.add("hidden");
+function bindTips(){
+  document.querySelectorAll(".pt").forEach(g=>{
+    g.addEventListener("pointerenter",()=>showTip(g));
+    g.addEventListener("pointerleave",hideTip);
+    g.addEventListener("focus",()=>showTip(g));
+    g.addEventListener("blur",hideTip);
+    g.addEventListener("click",e=>{ e.stopPropagation(); showTip(g); });
+  });
+}
+document.addEventListener("click",e=>{ if(!e.target.closest || !e.target.closest(".pt")) hideTip(); });
+addEventListener("scroll",hideTip,{passive:true});
+
+/* =====================================================================
+   How it works
+   ===================================================================== */
+function viewAbout(){
+  const techRows=Object.values(TECHNIQUE).map(t=>`<tr><td>${t.label}</td><td>${catTag(t.cat)}</td><td class="small">${t.def}</td><td class="num">${t.d.toFixed(2)}</td></tr>`).join("");
+  const domRows=Object.values(DOMAIN).map(v=>`<tr><td>${v.label}</td><td class="num">${v.info.toFixed(2)}</td><td class="num">${v.struct.toFixed(2)}</td><td class="num">${v.assist.toFixed(2)}</td><td class="num">${v.avg.toFixed(2)}</td></tr>`).join("");
+  return `
+  <div class="stack">
+    <div class="card">
+      <div class="small"><button class="link" data-go="home" style="padding-left:0">← All missions</button></div>
+      <h2>How the simulation works</h2>
+      <p>Every nudge's average effect is calibrated to <b>Mertens, Herberz, Hahnel &amp; Brosch (2022)</b>, a meta-analysis of 447 effect sizes from more than 200 studies (n = 2,148,439). Their overall estimate was Cohen's d = 0.43, 95% CI [0.38, 0.48]. Decision-structure nudges (defaults, effort, composition, consequences) were the most effective, and food was the most responsive domain.</p>
+    </div>
+    <div class="card">
+      <h3>Step 1: Average effect for a technique in a domain</h3>
+      <p class="small">The paper reports effects by technique (Table 2) and by <i>category × domain</i> (Fig. 5), but not by technique × domain. The game combines the two by assuming each technique keeps its relative strength within its category:</p>
+      <p class="callout small"><b>d</b>(technique, domain) = <b>d</b>(category | domain) × <b>d</b>(technique) ÷ <b>d</b>(category)</p>
+      <p class="small">Example: a default in the food domain = 0.78 × 0.62 ÷ 0.54 = 0.90. A reminder in the finance domain = 0.21 × 0.29 ÷ 0.28 = 0.22.</p>
+      <div class="tablewrap"><table><thead><tr><th>Technique</th><th>Category</th><th>Definition</th><th class="num">d</th></tr></thead><tbody>${techRows}</tbody></table></div>
+      <p class="small muted">Category averages: information 0.34, structure 0.54, assistance 0.28.</p>
+      <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Domain</th><th class="num">Information</th><th class="num">Structure</th><th class="num">Assistance</th><th class="num">Domain avg.</th></tr></thead><tbody>${domRows}</tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>Step 2: Publication bias (setting)</h3>
+      <p class="small">Mertens et al. found evidence of publication bias and ran a sensitivity analysis. Starting from an unadjusted d = 0.40 (τ² = 0.16), a <b>moderate</b> one-tailed bias adjustment gave d = 0.31 (τ² = 0.18), and a <b>severe</b> one gave d = 0.08 (τ² = 0.26). The game uses the <b>moderate</b> adjustment by default and scales every average by the same ratio (×0.775, or ×0.20 for severe). Treating the shrinkage as uniform across techniques and domains is a simplification.</p>
+      <p class="small">Reanalyses go further. Maier et al. (2022) concluded that after adjusting for publication bias, no evidence remains for an average nudge effect, while noting that heterogeneity means some nudges may still work. Szaszi et al. (2022) argued that effects vary too much for a single average to be very informative.</p>
+    </div>
+    <div class="card">
+      <h3>Step 3: Each simulation is a new setting</h3>
+      <p class="small">Real nudges don't have one fixed effect. Each simulation draws every selected nudge's true effect from a normal distribution centered on its average, with SD = τ from the matching bias model. <b>Full</b> uses τ as estimated (≈0.40 to 0.51, about as large as the average effect itself, so nudges sometimes backfire). <b>Partial</b> (the default) uses half of τ. <b>None</b> uses the average every time.</p>
+    </div>
+    <div class="card">
+      <h3>Step 4: From d to a percentage</h3>
+      <p class="small">Outcomes are yes/no behaviors, so d is converted to a log odds ratio with Chinn's (2000) approximation, ln(OR) = d × π/√3 ≈ 1.81 d, and applied to the baseline: p = logistic(logit(baseline) + 1.81 d). Each simulation then draws ${N_PER_ARM.toLocaleString()} people per group from binomial distributions. The 95% CIs are Wald intervals.</p>
+      <p class="small">Caveat: the main text of Mertens et al. doesn't say how d was computed for yes/no outcomes. A probit (latent normal) conversion gives nearly the same percentages (within about 4 points here). If the original studies' d was instead computed by treating 0/1 outcomes as raw scores, the true percentage changes would be larger than shown, especially at low baselines like the blood drive and green energy missions.</p>
+    </div>
+    <div class="card">
+      <h3>Targets</h3>
+      <p class="small">With 8 nudges available per mission, there are 92 possible packages of 1 to 3 nudges. Each mission's target is the best package's average outcome under the moderate publication-bias adjustment, rounded down to the nearest 5%. So at least one package reaches it on average; how many depends on how far the rounding drops. With variation turned on, any single run can land above or below.</p>
+    </div>
+    <div class="card">
+      <h3>Game assumptions (not from the literature)</h3>
+      <ul class="small">
+        <li><b>Combining nudges:</b> Mertens et al. <i>excluded</i> studies that combined techniques, so there's no estimate for stacked nudges. The game sorts the package's effects from largest to smallest and adds them with weights 1, ½, ¼.</li>
+        <li><b>Scenarios and baselines</b> are invented. The concrete nudges illustrate each technique; they are not specific published interventions.</li>
+        <li>The simulated population is homogeneous: no moderators by person, and no decay over time.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>References</h3>
+      <ul class="refs small">
+        <li>Mertens, S., Herberz, M., Hahnel, U. J. J., &amp; Brosch, T. (2022). The effectiveness of nudging: A meta-analysis of choice architecture interventions across behavioral domains. <i>PNAS, 119</i>(1), e2107346118. <a href="https://doi.org/10.1073/pnas.2107346118" target="_blank" rel="noopener">doi:10.1073/pnas.2107346118</a> (Correction: <a href="https://doi.org/10.1073/pnas.2204059119" target="_blank" rel="noopener">doi:10.1073/pnas.2204059119</a>; values here are from the corrected article.)</li>
+        <li>Maier, M., Bartoš, F., Stanley, T. D., Shanks, D. R., Harris, A. J. L., &amp; Wagenmakers, E.-J. (2022). No evidence for nudging after adjusting for publication bias. <i>PNAS, 119</i>(31), e2200300119. <a href="https://doi.org/10.1073/pnas.2200300119" target="_blank" rel="noopener">doi:10.1073/pnas.2200300119</a></li>
+        <li>Szaszi, B., Higney, A., Charlton, A., Gelman, A., Ziano, I., Aczel, B., Goldstein, D. G., Yeager, D. S., &amp; Tipton, E. (2022). No reason to expect large and consistent effects of nudge interventions. <i>PNAS, 119</i>, e2200732119. <a href="https://doi.org/10.1073/pnas.2200732119" target="_blank" rel="noopener">doi:10.1073/pnas.2200732119</a></li>
+        <li>Bakdash, J. Z., &amp; Marusich, L. R. (2022). Left-truncated effects and overestimated meta-analytic means. <i>PNAS, 119</i>, e2203616119. <a href="https://doi.org/10.1073/pnas.2203616119" target="_blank" rel="noopener">doi:10.1073/pnas.2203616119</a></li>
+        <li>Chinn, S. (2000). A simple method for converting an odds ratio to effect size for use in meta-analysis. <i>Statistics in Medicine, 19</i>(22), 3127–3131. <a href="https://doi.org/10.1002/1097-0258(20001130)19:22%3C3127::AID-SIM784%3E3.0.CO;2-M" target="_blank" rel="noopener">doi:10.1002/1097-0258(20001130)19:22&lt;3127::AID-SIM784&gt;3.0.CO;2-M</a></li>
+      </ul>
+      <p class="small muted">An independent teaching demo, not affiliated with the authors above.</p>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   Tutorial (first launch, and from the header)
+   ===================================================================== */
+const TUT=[
+  {art:"🧭", title:"Welcome to Nudge Lab", body:"You're a choice architect. Each mission has a behavior to change, like getting more people to save for retirement or eat their vegetables. You'll see a baseline (what people do now) and a target to beat."},
+  {art:"🧰", title:"Pick up to 3 nudges", body:`Every mission has 8 nudges in three families: <b style="color:var(--struct)">structure</b> changes the choice itself (e.g., a default), <b style="color:var(--info)">information</b> changes what people know (e.g., a social norm), and <b style="color:var(--assist)">assistance</b> helps people follow through (e.g., a reminder).`},
+  {art:"🎲", title:"Simulate", body:"Hit Simulate to test your nudges on 5,000 people against a 5,000-person control group. Each run happens in a new setting, so the same nudges can do better or worse. Use <b>Simulate again</b> to see how much results vary, or swap nudges and try again."},
+  {art:"📈", title:"Learn from your history", body:"Your results build up in a chart. Hover over or tap a point to see what you tried. When you're ready, <b>Reveal the best strategy</b> shows the research averages behind every nudge. Effects are based on a meta-analysis of 447 effect sizes (Mertens et al., 2022)."}
+];
+let tutStep=0;
+const $tut=document.getElementById("tutorial");
+function openTutorial(){ tutStep=0; drawTutorial(); $tut.classList.remove("hidden"); setTimeout(()=>{const b=document.getElementById("tutNext"); if(b) b.focus();},0); }
+function closeTutorial(){ $tut.classList.add("hidden"); store.set("tutorialSeen",true); }
+function drawTutorial(){
+  const s=TUT[tutStep], lastStep=tutStep===TUT.length-1;
+  $tut.innerHTML=`<div class="modal">
+    <div class="art" aria-hidden="true">${s.art}</div>
+    <h2 id="tutTitle">${s.title}</h2>
+    <p>${s.body}</p>
+    <div class="dots" aria-hidden="true">${TUT.map((_,i)=>`<span class="${i===tutStep?"on":""}"></span>`).join("")}</div>
+    <div class="nav">
+      <button class="link" id="tutSkip">${lastStep?"":"Skip"}</button>
+      <div style="display:flex;gap:8px">
+        ${tutStep>0?`<button id="tutBack">Back</button>`:""}
+        <button class="primary" id="tutNext">${lastStep?"Let's go":"Next"}</button>
+      </div>
+    </div></div>`;
+  document.getElementById("tutNext").onclick=()=>{ if(lastStep) closeTutorial(); else { tutStep++; drawTutorial(); document.getElementById("tutNext").focus(); } };
+  const bk=document.getElementById("tutBack"); if(bk) bk.onclick=()=>{ tutStep--; drawTutorial(); };
+  const sk=document.getElementById("tutSkip"); if(lastStep) sk.style.visibility="hidden"; else sk.onclick=closeTutorial;
+}
+$tut.addEventListener("click",e=>{ if(e.target===$tut) closeTutorial(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$tut.classList.contains("hidden")) closeTutorial(); });
+document.getElementById("openTutorial").onclick=openTutorial;
+
+/* =====================================================================
+   Router
+   ===================================================================== */
+function render(v, keepScroll){
+  const y=window.scrollY;
+  hideTip();
+  if(v==="home"){ $view.innerHTML=viewHome(); bindHome(); }
+  else if(v==="mission"){ $view.innerHTML=viewMission(); bindMission(); }
+  else if(v==="about"){ $view.innerHTML=viewAbout(); }
+  document.getElementById("main").classList.toggle("has-bar", v==="mission");
+  document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>render(b.dataset.go));
+  updateBanner();
+  window.scrollTo(0, keepScroll? y : 0);
+}
+render("home");
+if(!store.get("tutorialSeen",false)) openTutorial();
+</script>
+</body>
+</html>
